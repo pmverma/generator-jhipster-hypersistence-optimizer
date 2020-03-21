@@ -1,0 +1,10 @@
+{
+  "generator-jhipster-module": {
+    "promptValues": {
+      "githubName": "pmverma",
+      "authorName": "Pm Verma",
+      "authorEmail": "pmverma.cs@gmail.com",
+      "authorUrl": "www.pmverma.com"
+    }
+  }
+}

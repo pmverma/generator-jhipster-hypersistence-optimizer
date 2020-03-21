@@ -1,0 +1,2 @@
+hello hypersistence-optimizer!
+It's dummy.txt
