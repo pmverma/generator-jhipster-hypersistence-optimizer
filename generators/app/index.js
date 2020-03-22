@@ -4,6 +4,10 @@ const BaseGenerator = require('generator-jhipster/generators/generator-base');
 const jhipsterConstants = require('generator-jhipster/generators/generator-constants');
 const packagejs = require('../../package.json');
 
+const hoGroupId = 'io.hypersistence';
+const hoArtifactId = 'hypersistence-optimizer';
+const hoVersions = '2.0.2';
+
 module.exports = class extends BaseGenerator {
     get initializing() {
         return {
@@ -30,6 +34,11 @@ module.exports = class extends BaseGenerator {
                         `v${packagejs.version}\n`
                     )}`
                 );
+            },
+            checkDatabaseType() {
+                if (this.jhipsterAppConfig.databaseType !== 'sql') {
+                    this.error('Hypersistence Optimizer works only with SQL database types!');
+                }
             },
             checkJhipster() {
                 const currentJhipsterVersion = this.jhipsterAppConfig.jhipsterVersion;
@@ -103,18 +112,23 @@ module.exports = class extends BaseGenerator {
         this.log(`message=${this.message}`);
         this.log('------\n');
 
-        if (this.clientFramework === 'react') {
-            this.template('dummy.txt', 'dummy-react.txt');
-        }
-        if (this.clientFramework === 'angularX') {
-            this.template('dummy.txt', 'dummy-angularX.txt');
-        }
         if (this.buildTool === 'maven') {
-            this.template('dummy.txt', 'dummy-maven.txt');
+            this.addMavenProperty(`${hoArtifactId}.version`, hoVersions);
+            this.addMavenDependency(hoGroupId, hoArtifactId, `\${${hoArtifactId}.version}`);
         }
         if (this.buildTool === 'gradle') {
-            this.template('dummy.txt', 'dummy-gradle.txt');
+            this.addGradleProperty(`${hoArtifactId}.version`, hoVersions);
+            this.addGradleDependency(hoGroupId, hoArtifactId, `\${${hoArtifactId}.version}`);
         }
+        this.addLoggerForLogbackSpring('Hypersistence Optimizer', 'INFO');
+        this.template(
+            'server/src/main/java/package/config/HypersistenceConfiguration.java.ejs',
+            `${javaDir}/config/HypersistenceConfiguration.java`
+        );
+        this.template(
+            'server/src/main/resources/META-INF/services/org.hibernate.boot.spi.SessionFactoryBuilderFactory',
+            `${resourceDir}/META-INF/services/org.hibernate.boot.spi.SessionFactoryBuilderFactory`
+        );
     }
 
     install() {

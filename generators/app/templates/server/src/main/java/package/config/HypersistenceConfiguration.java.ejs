@@ -1,0 +1,74 @@
+package <%= packageName %>.config;
+
+import <%= packageName %>.domain.PersistentAuditEvent;
+import <%= packageName %>.domain.User;
+import io.hypersistence.optimizer.HypersistenceOptimizer;
+import io.hypersistence.optimizer.core.config.JpaConfig;
+import io.hypersistence.optimizer.core.event.Event;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+
+import javax.persistence.EntityManagerFactory;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+
+@Configuration
+public class HypersistenceConfiguration {
+
+    @Bean
+    public HypersistenceOptimizer hypersistenceOptimizer(
+        EntityManagerFactory entityManagerFactory) {
+        return new HypersistenceOptimizer(
+            new JpaConfig(
+                entityManagerFactory
+            )
+        );
+    }
+}
+
+@Component
+class HypersistenceRunner implements ApplicationRunner {
+
+    private static final List<String> knownIssues;
+
+    static {
+        String elementCollectionEvent = "The [data] element-collection in the [".concat(PersistentAuditEvent.class.getCanonicalName()).concat("]");
+        String batchFetchingEvent = "The [authorities] attribute in the [".concat(User.class.getCanonicalName()).concat("]");
+        knownIssues = Arrays.asList(elementCollectionEvent, batchFetchingEvent);
+    }
+
+
+    private HypersistenceOptimizer hypersistenceOptimizer;
+
+    private Environment environment;
+
+    public HypersistenceRunner(HypersistenceOptimizer hypersistenceOptimizer, Environment environment) {
+        this.hypersistenceOptimizer = hypersistenceOptimizer;
+        this.environment = environment;
+    }
+
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        long numberOfKnownIssues = this.hypersistenceOptimizer.getEvents().stream().map(Event::getDescription).map(
+            message -> {
+                return knownIssues.stream().anyMatch(message::contains);
+            }
+        ).filter(aBoolean -> aBoolean == true).count();
+        long numberOfUnKnownIssues = this.hypersistenceOptimizer.getEvents().size() - numberOfKnownIssues;
+
+        // following is added so that build can be failed manually.
+        // We can achieve same during Tests once we start using the prod db type during tests
+        if ("true".equalsIgnoreCase(System.getenv("IS_RUNNING_IN_CI")) && numberOfUnKnownIssues > 0) {
+            Path path = Paths.get(System.getProperty("user.home").concat(File.separator).concat("a_very_rare_filename_used_as_a_flag_file"));
+            Files.createFile(path);
+        }
+    }
+}
