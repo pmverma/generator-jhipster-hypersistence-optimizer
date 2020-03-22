@@ -67,8 +67,13 @@ class HypersistenceRunner implements ApplicationRunner {
         // following is added so that build can be failed manually.
         // We can achieve same during Tests once we start using the prod db type during tests
         if ("true".equalsIgnoreCase(System.getenv("IS_RUNNING_IN_CI")) && numberOfUnKnownIssues > 0) {
-            Path path = Paths.get(System.getProperty("user.home").concat(File.separator).concat("a_very_rare_filename_used_as_a_flag_file"));
-            Files.createFile(path);
+            String fileContent = this.hypersistenceOptimizer.getEvents().stream().map(event -> {
+                return LocalDateTime.now().toString().concat(" - ").concat(event.getPriority().toString()).concat(" - ").concat(event.getDescription()).concat(" - ").concat(event.getInfoUrl());
+            }).collect(Collectors.joining("\n"));
+
+            Path path = Paths.get(System.getProperty("user.home").concat(File.separator).concat("a_file_used_by_jhipster_hypersistence_optimizer_to_store_temp_contents"));
+            Path file = Files.createFile(path);
+            Files.write(file, fileContent.getBytes());
         }
     }
 }
