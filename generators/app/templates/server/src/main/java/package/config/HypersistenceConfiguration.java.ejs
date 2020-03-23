@@ -5,6 +5,7 @@ import <%= packageName %>.domain.User;
 import io.hypersistence.optimizer.HypersistenceOptimizer;
 import io.hypersistence.optimizer.core.config.JpaConfig;
 import io.hypersistence.optimizer.core.event.Event;
+<% if (['mysql','mariadb'].includes(prodDatabaseType) || ['mysql','mariadb'].includes(devDatabaseType)) { %>import io.hypersistence.optimizer.hibernate.event.mapping.identifier.IdentityGeneratorEvent;<% } %>
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
@@ -17,8 +18,10 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 public class HypersistenceConfiguration {
@@ -29,7 +32,9 @@ public class HypersistenceConfiguration {
         return new HypersistenceOptimizer(
             new JpaConfig(
                 entityManagerFactory
-            )
+            )<% if (['mysql','mariadb'].includes(prodDatabaseType) || ['mysql','mariadb'].includes(devDatabaseType)) { %>.setEventFilter(
+                event -> !(event instanceof IdentityGeneratorEvent)
+            )<% } %>
         );
     }
 }
@@ -44,7 +49,6 @@ class HypersistenceRunner implements ApplicationRunner {
         String batchFetchingEvent = "The [authorities] attribute in the [".concat(User.class.getCanonicalName()).concat("]");
         knownIssues = Arrays.asList(elementCollectionEvent, batchFetchingEvent);
     }
-
 
     private HypersistenceOptimizer hypersistenceOptimizer;
 
@@ -66,12 +70,16 @@ class HypersistenceRunner implements ApplicationRunner {
 
         // following is added so that build can be failed manually.
         // We can achieve same during Tests once we start using the prod db type during tests
-        if ("true".equalsIgnoreCase(System.getenv("IS_RUNNING_IN_CI")) && numberOfUnKnownIssues > 0) {
+        if ("true".equalsIgnoreCase(environment.getProperty("IS_RUNNING_IN_CI")) && numberOfUnKnownIssues > 0) {
             String fileContent = this.hypersistenceOptimizer.getEvents().stream().map(event -> {
-                return LocalDateTime.now().toString().concat(" - ").concat(event.getPriority().toString()).concat(" - ").concat(event.getDescription()).concat(" - ").concat(event.getInfoUrl());
+                return LocalDateTime.now().toString().concat(" - ")
+                    .concat(event.getPriority().toString()).concat(" - ")
+                    .concat(event.getDescription()).concat(" - ")
+                    .concat(event.getInfoUrl());
             }).collect(Collectors.joining("\n"));
 
-            Path path = Paths.get(System.getProperty("user.home").concat(File.separator).concat("a_file_used_by_jhipster_hypersistence_optimizer_to_store_temp_contents"));
+            Path path = Paths.get(environment.getProperty("user.home").concat(File.separator)
+                .concat("a_file_used_by_jhipster_hypersistence_optimizer_to_store_temp_contents"));
             Path file = Files.createFile(path);
             Files.write(file, fileContent.getBytes());
         }

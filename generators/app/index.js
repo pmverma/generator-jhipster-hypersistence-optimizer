@@ -78,6 +78,8 @@ module.exports = class extends BaseGenerator {
         this.clientFramework = this.jhipsterAppConfig.clientFramework;
         this.clientPackageManager = this.jhipsterAppConfig.clientPackageManager;
         this.buildTool = this.jhipsterAppConfig.buildTool;
+        this.prodDatabaseType = this.jhipsterAppConfig.prodDatabaseType;
+        this.devDatabaseType = this.jhipsterAppConfig.devDatabaseType;
 
         // use function in generator-base.js from generator-jhipster
         this.angularAppName = this.getAngularAppName();
