@@ -59,29 +59,44 @@ class HypersistenceRunner implements ApplicationRunner {
         this.environment = environment;
     }
 
+    /**
+     * This method will create a temp file of events in CI environment
+     * By using that file we can proceed or fail the build
+     *
+     * @param args
+     * @throws Exception
+     */
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        long numberOfKnownIssues = this.hypersistenceOptimizer.getEvents().stream().map(Event::getDescription).map(
-            message -> {
-                return knownIssues.stream().anyMatch(message::contains);
-            }
-        ).filter(aBoolean -> aBoolean == true).count();
-        long numberOfUnKnownIssues = this.hypersistenceOptimizer.getEvents().size() - numberOfKnownIssues;
-
-        // following is added so that build can be failed manually.
-        // We can achieve same during Tests once we start using the prod db type during tests
+        long numberOfUnKnownIssues = getNumberOfUnknownIssues();
         if ("true".equalsIgnoreCase(environment.getProperty("IS_RUNNING_IN_CI")) && numberOfUnKnownIssues > 0) {
-            String fileContent = this.hypersistenceOptimizer.getEvents().stream().map(event -> {
-                return LocalDateTime.now().toString().concat(" - ")
-                    .concat(event.getPriority().toString()).concat(" - ")
-                    .concat(event.getDescription()).concat(" - ")
-                    .concat(event.getInfoUrl());
-            }).collect(Collectors.joining("\n"));
-
-            Path path = Paths.get(environment.getProperty("user.home").concat(File.separator)
-                .concat("a_file_used_by_jhipster_hypersistence_optimizer_to_store_temp_contents"));
-            Path file = Files.createFile(path);
-            Files.write(file, fileContent.getBytes());
+            logHoEvents();
         }
+    }
+
+    /**
+     * Filter the known issues
+     *
+     * @return number of unknown issues after filtering
+     */
+    private long getNumberOfUnknownIssues() {
+        long numberOfKnownIssues = this.hypersistenceOptimizer.getEvents().stream().map(Event::getDescription).map(
+            message -> knownIssues.stream().anyMatch(message::contains)
+        ).filter(aBoolean -> aBoolean).count();
+        return this.hypersistenceOptimizer.getEvents().size() - numberOfKnownIssues;
+    }
+
+
+    private void logHoEvents() throws IOException {
+        String fileContent = this.hypersistenceOptimizer.getEvents().stream().map(event -> LocalDateTime.now().toString().concat(" - ")
+            .concat(event.getPriority().toString()).concat(" - ")
+            .concat(event.getDescription()).concat(" - ")
+            .concat(event.getInfoUrl())
+        ).collect(Collectors.joining("\n"));
+
+        Path path = Paths.get(environment.getProperty("user.home").concat(File.separator)
+            .concat("a_file_used_by_jhipster_hypersistence_optimizer_to_store_temp_contents.log"));
+        Path file = Files.createFile(path);
+        Files.write(file, fileContent.getBytes());
     }
 }
