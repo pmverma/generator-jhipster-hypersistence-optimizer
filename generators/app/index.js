@@ -11,12 +11,6 @@ const hoVersions = '2.0.2';
 module.exports = class extends BaseGenerator {
     get initializing() {
         return {
-            init(args) {
-                if (args === 'default') {
-                    // do something when argument is 'default'
-                    this.message = 'default message';
-                }
-            },
             readConfig() {
                 this.jhipsterAppConfig = this.getAllJhipsterConfig();
                 if (!this.jhipsterAppConfig) {
@@ -55,20 +49,27 @@ module.exports = class extends BaseGenerator {
     prompting() {
         const prompts = [
             {
-                when: () => typeof this.message === 'undefined',
-                type: 'input',
-                name: 'message',
-                message: 'Please put something',
-                default: 'hello world!'
+                type: 'confirm',
+                name: 'useHo',
+                message: 'Do you want to add Hypersistence Optimizer to your project?',
+                default: true
             }
         ];
 
         const done = this.async();
-        this.prompt(prompts).then(answers => {
-            this.promptAnswers = answers;
-            // To access props answers use this.promptAnswers.someOption;
-            done();
-        });
+        this.prompt(prompts)
+            .then(answers => {
+                this.promptAnswers = answers;
+                // To access props answers use this.promptAnswers.someOption;
+                if (this.promptAnswers.useHo === false) {
+                    this.env.error(chalk.green('Aborting module run, no changes were made.'));
+                }
+                done();
+            })
+            .catch(err => {
+                this.log(Error(err));
+                done();
+            });
     }
 
     writing() {
@@ -89,11 +90,6 @@ module.exports = class extends BaseGenerator {
         const resourceDir = jhipsterConstants.SERVER_MAIN_RES_DIR;
         const webappDir = jhipsterConstants.CLIENT_MAIN_SRC_DIR;
 
-        // variable from questions
-        if (typeof this.message === 'undefined') {
-            this.message = this.promptAnswers.message;
-        }
-
         // show all variables
         this.log('\n--- some config read from config ---');
         this.log(`baseName=${this.baseName}`);
@@ -109,11 +105,9 @@ module.exports = class extends BaseGenerator {
         this.log(`javaDir=${javaDir}`);
         this.log(`resourceDir=${resourceDir}`);
         this.log(`webappDir=${webappDir}`);
-
-        this.log('\n--- variables from questions ---');
-        this.log(`message=${this.message}`);
-        this.log('------\n');
-
+        if (this.promptAnswers.useHo === false) {
+            return;
+        }
         if (this.buildTool === 'maven') {
             this.addMavenProperty(`${hoArtifactId}.version`, hoVersions);
             this.addMavenDependency(hoGroupId, hoArtifactId, `\${${hoArtifactId}.version}`);
